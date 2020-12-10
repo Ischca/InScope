@@ -4,6 +4,7 @@ import arrow.meta.CliPlugin
 import arrow.meta.Meta
 import arrow.meta.invoke
 import arrow.meta.phases.CompilerContext
+import arrow.meta.plugins.proofs.phases.annotations
 import com.google.auto.service.AutoService
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
@@ -13,8 +14,10 @@ import org.jetbrains.kotlin.compiler.plugin.ComponentRegistrar
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.psi.KtAnnotationsContainer
 import org.jetbrains.kotlin.psi.KtCallElement
 import org.jetbrains.kotlin.psi.KtConstructorCalleeExpression
+import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.psiUtil.getTextWithLocation
 import org.jetbrains.kotlin.psi.psiUtil.parents
 import org.jetbrains.kotlin.resolve.BindingContext
@@ -22,6 +25,7 @@ import org.jetbrains.kotlin.resolve.calls.callUtil.getResolvedCall
 import org.jetbrains.kotlin.resolve.descriptorUtil.annotationClass
 import org.jetbrains.kotlin.resolve.descriptorUtil.firstArgument
 import org.jetbrains.kotlin.resolve.source.getPsi
+import org.jetbrains.kotlin.util.suffixIfNot
 import java.util.*
 import kotlin.contracts.ExperimentalContracts
 
@@ -41,10 +45,10 @@ private val Meta.inScope: CliPlugin
 	get() = "InScope" {
 		// Get annotation name from plugin option.
 		val targetAnnotationName = this.configuration?.get(InScopeConfigurationKeys.ANNOTATION)
-		                           ?: ANNOTATION_NAME
+				?: ANNOTATION_NAME
 		val targetAnnotationFqName = FqName(targetAnnotationName)
 		val recursive = this.configuration?.get(InScopeConfigurationKeys.RECURSIVE)
-		                ?: false
+				?: false
 		
 		meta(
 				callChecker { resolvedCall, el, context ->
@@ -64,35 +68,51 @@ private val Meta.inScope: CliPlugin
 						{
 							error(el,
 							      "No argument is defined for the annotation \"$targetAnnotationName\"." +
-							      "Define an argument of type String that takes a \"block name\" as its first argument.")
+									      "Define an argument of type String that takes a \"block name\" as its first argument.")
 							return@callChecker
 						}
 						println("function=[${el.text}], blockName=[${blockName}]")
 						// Explore the caller and get one that matches the block name.
 						val target = el.parent.parents.reduce { acc, _ ->
-							if(acc is KtCallElement)
+							when(acc)
 							{
-								if(!recursive || acc.calleeExpression?.text == blockName)
+								is KtCallElement ->
 								{
-									acc
+									if(!recursive || acc.calleeExpression?.text == blockName)
+									{
+										acc
+									} else acc.parent
 								}
-								else acc.parent
+								is KtNamedFunction ->
+								{
+									if(!recursive || acc.name == blockName)
+									{
+										acc
+									} else acc.parent
+								}
+								else -> acc.parent
 							}
-							else acc.parent
 						}
 						// If the caller does not match the block name, it will result in an error.
-						if(target !is KtCallElement ||
-						   !(target.calleeExpression?.text == blockName
-						     || (!recursive && target.annotations(bindingContext)
-								   .any { t -> annotations.any { a -> t.fqName == a.fqName } })
-						    ))
+						if((target !is KtCallElement ||
+									!(target.calleeExpression?.text == blockName
+											|| (!recursive && target.annotations(bindingContext)
+											.any { t -> annotations.any { a -> t.fqName == a.fqName } }))
+									)
+							&& (target !is KtNamedFunction ||
+									!((target as KtNamedFunction).name == blockName
+											|| (!recursive && target.annotations(bindingContext)
+											.any { t -> annotations.any { a -> t.fqName == a.fqName } })
+											)
+									)
+						)
 						{
 							val annotationNamesText = annotations.joinToString(separator = " or ") {
 								"@${it.fqName?.shortName()}"
 							}
 							error(el,
-							      "fun ${el.text}() is must be called in $blockName {} " +
-							      if(!recursive) "or attach $annotationNamesText annotation." else ".")
+							      "fun ${el.text.suffixIfNot("()")} is must be called in $blockName {} " +
+									      if(!recursive) "or attach $annotationNamesText annotation." else ".")
 						}
 					}
 				}
@@ -143,8 +163,8 @@ fun Annotations.findRecursive(fqName: FqName, manager: PsiManager): List<Annotat
 		}
 				.flatMap {
 					val parents = it.annotationClass
-							              ?.annotations
-							              ?.findRecursive(fqName, manager) ?: emptyList()
+							?.annotations
+							?.findRecursive(fqName, manager) ?: emptyList()
 					if(parents.isNotEmpty()) parents.plus(listOf(it)) else parents
 				}
 	}

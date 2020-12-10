@@ -30,6 +30,31 @@ internal class InScopePluginKtTest
 	fun `should success`()
 	{
 		assertThis(CompilerTest(
+			config = { InScopeConfig() },
+			code = {
+				//language=kotlin
+				"""
+						|package io.github.ischca.compilerPlugin
+						|
+						|
+						$annotationSource
+						|object Hoge {
+						|    @Fuga("transaction")
+						|    fun select() = println("select!")
+						|}
+						|
+						|fun transaction() {
+						|    Hoge.select()
+						|}
+					""".trimIndent().source
+			},
+			assert = { compiles }))
+	}
+	
+	@Test
+	fun `should success nested call`()
+	{
+		assertThis(CompilerTest(
 				config = { InScopeConfig() },
 				code = {
 					//language=kotlin
