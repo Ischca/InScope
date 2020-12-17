@@ -85,7 +85,7 @@ private val Meta.inScope: CliPlugin
 								}
 								is KtNamedFunction ->
 								{
-									if(!recursive || acc.name == blockName)
+									if(acc.isTopLevel || !recursive || acc.name == blockName)
 									{
 										acc
 									} else acc.parent
@@ -96,12 +96,12 @@ private val Meta.inScope: CliPlugin
 						// If the caller does not match the block name, it will result in an error.
 						if((target !is KtCallElement ||
 									!(target.calleeExpression?.text == blockName
-											|| (!recursive && target.annotations(bindingContext)
+											|| (target.annotations(bindingContext)
 											.any { t -> annotations.any { a -> t.fqName == a.fqName } }))
 									)
 							&& (target !is KtNamedFunction ||
 									!((target as KtNamedFunction).name == blockName
-											|| (!recursive && target.annotations(bindingContext)
+											|| (target.annotations(bindingContext)
 											.any { t -> annotations.any { a -> t.fqName == a.fqName } })
 											)
 									)

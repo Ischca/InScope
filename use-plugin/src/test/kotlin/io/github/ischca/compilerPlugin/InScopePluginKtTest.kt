@@ -30,10 +30,10 @@ internal class InScopePluginKtTest
 	fun `should success`()
 	{
 		assertThis(CompilerTest(
-			config = { InScopeConfig() },
-			code = {
-				//language=kotlin
-				"""
+				config = { InScopeConfig() },
+				code = {
+					//language=kotlin
+					"""
 						|package io.github.ischca.compilerPlugin
 						|
 						|
@@ -47,8 +47,8 @@ internal class InScopePluginKtTest
 						|    Hoge.select()
 						|}
 					""".trimIndent().source
-			},
-			assert = { compiles }))
+				},
+				assert = { compiles }))
 	}
 	
 	@Test
@@ -150,6 +150,46 @@ internal class InScopePluginKtTest
 						|        Hoge.select()
 						|       }
 						|    }
+						|}
+					""".trimIndent().source
+				},
+				assert = { compiles }))
+	}
+	
+	@Test
+	fun `should success annotate function`()
+	{
+		assertThis(CompilerTest(
+				config = {
+					InScopeConfig(
+							PluginOption(InScopeCommandLineProcessor.PLUGIN_ID,
+							             InScopeCommandLineProcessor.RECURSIVE_OPTION.optionName,
+							             true.toString()))
+				},
+				code = {
+					//language=kotlin
+					"""
+						|package io.github.ischca.compilerPlugin
+						|
+						|
+						$annotationSource
+						|
+						|@Fuga("transaction")
+						|annotation class Piyo
+						|
+						|object Hoge {
+						|    @Piyo
+						|    fun select() = println("select!")
+						|}
+						|
+						|fun transaction(proc: () -> Unit) { proc() }
+						|
+						|@Piyo
+						|fun caller(proc: () -> Unit) { proc() }
+						|
+						|@Piyo
+						|fun main() {
+						|    Hoge.select()
 						|}
 					""".trimIndent().source
 				},
