@@ -14,7 +14,7 @@ class InScopeGradlePlugin: KotlinCompilerPluginSupportPlugin
 {
 	override fun getCompilerPluginId(): String = InScopeCommandLineProcessor.PLUGIN_ID
 	override fun getPluginArtifact(): SubpluginArtifact = SubpluginArtifact(
-			groupId = "io.github.ischca", artifactId = "in-scope", version = "0.0.1"
+			groupId = "io.github.ischca", artifactId = "in-scope", version = "0.0.2"
 	)
 	
 	override fun isApplicable(kotlinCompilation: KotlinCompilation<*>): Boolean
@@ -26,7 +26,7 @@ class InScopeGradlePlugin: KotlinCompilerPluginSupportPlugin
 	{
 		val project = kotlinCompilation.target.project
 		val extension = project.extensions.findByType(InScopeExtension::class.java)
-		                ?: InScopeExtension()
+				?: InScopeExtension()
 		return kotlinCompilation.target.project.provider {
 			val options = mutableListOf<SubpluginOption>()
 			for(annotation in extension.myAnnotations)

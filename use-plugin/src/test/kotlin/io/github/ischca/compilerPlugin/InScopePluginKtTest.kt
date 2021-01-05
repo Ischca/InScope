@@ -197,6 +197,33 @@ internal class InScopePluginKtTest
 	}
 	
 	@Test
+	fun `should success multiple block name`()
+	{
+		assertThis(CompilerTest(
+				config = { InScopeConfig() },
+				code = {
+					//language=kotlin
+					"""
+						|package io.github.ischca.compilerPlugin
+						|
+						|@Retention(AnnotationRetention.SOURCE)
+						|@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
+						|annotation class Fuga(vararg val blockName: String)
+						|
+						|object Hoge {
+						|    @Fuga("transaction", "transaction2")
+						|    fun select() = println("select!")
+						|}
+						|
+						|fun transaction() {
+						|    Hoge.select()
+						|}
+					""".trimIndent().source
+				},
+				assert = { compiles }))
+	}
+	
+	@Test
 	fun `should fail`()
 	{
 		assertThis(CompilerTest(

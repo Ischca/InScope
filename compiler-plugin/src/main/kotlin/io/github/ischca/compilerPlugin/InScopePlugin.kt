@@ -14,7 +14,6 @@ import org.jetbrains.kotlin.compiler.plugin.ComponentRegistrar
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.psi.KtAnnotationsContainer
 import org.jetbrains.kotlin.psi.KtCallElement
 import org.jetbrains.kotlin.psi.KtConstructorCalleeExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -22,6 +21,7 @@ import org.jetbrains.kotlin.psi.psiUtil.getTextWithLocation
 import org.jetbrains.kotlin.psi.psiUtil.parents
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.calls.callUtil.getResolvedCall
+import org.jetbrains.kotlin.resolve.constants.ArrayValue
 import org.jetbrains.kotlin.resolve.descriptorUtil.annotationClass
 import org.jetbrains.kotlin.resolve.descriptorUtil.firstArgument
 import org.jetbrains.kotlin.resolve.source.getPsi
@@ -62,30 +62,33 @@ private val Meta.inScope: CliPlugin
 					{
 						val targetAnnotation = annotations.firstOrNull { it.fqName == targetAnnotationFqName }
 						// Get the block name from the annotation argument.
-						val blockName = targetAnnotation?.firstArgument()
-								?.stringTemplateValue()
-						if(blockName == null)
+						val blockNames = when(val argument = targetAnnotation?.firstArgument())
+						{
+							is ArrayValue -> argument.value.map { it.stringTemplateValue() }
+							else -> null
+						}
+						if(blockNames == null)
 						{
 							error(el,
-							      "No argument is defined for the annotation \"$targetAnnotationName\"." +
+							      "No argument is defined for the annotation \"$targetAnnotationName\". " +
 									      "Define an argument of type String that takes a \"block name\" as its first argument.")
 							return@callChecker
 						}
-						println("function=[${el.text}], blockName=[${blockName}]")
+						println("function=[${el.text}], blockName=[${blockNames}]")
 						// Explore the caller and get one that matches the block name.
 						val target = el.parent.parents.reduce { acc, _ ->
 							when(acc)
 							{
 								is KtCallElement ->
 								{
-									if(!recursive || acc.calleeExpression?.text == blockName)
+									if(!recursive || blockNames.contains(acc.calleeExpression?.text))
 									{
 										acc
 									} else acc.parent
 								}
 								is KtNamedFunction ->
 								{
-									if(acc.isTopLevel || !recursive || acc.name == blockName)
+									if(acc.isTopLevel || !recursive || blockNames.contains(acc.name))
 									{
 										acc
 									} else acc.parent
@@ -95,12 +98,12 @@ private val Meta.inScope: CliPlugin
 						}
 						// If the caller does not match the block name, it will result in an error.
 						if((target !is KtCallElement ||
-									!(target.calleeExpression?.text == blockName
+									!(blockNames.contains(target.calleeExpression?.text)
 											|| (target.annotations(bindingContext)
 											.any { t -> annotations.any { a -> t.fqName == a.fqName } }))
 									)
 							&& (target !is KtNamedFunction ||
-									!((target as KtNamedFunction).name == blockName
+									!(blockNames.contains(target.name)
 											|| (target.annotations(bindingContext)
 											.any { t -> annotations.any { a -> t.fqName == a.fqName } })
 											)
@@ -111,7 +114,7 @@ private val Meta.inScope: CliPlugin
 								"@${it.fqName?.shortName()}"
 							}
 							error(el,
-							      "fun ${el.text.suffixIfNot("()")} is must be called in $blockName {} " +
+							      "fun ${el.text.suffixIfNot("()")} is must be called in $blockNames {} " +
 									      if(!recursive) "or attach $annotationNamesText annotation." else ".")
 						}
 					}
