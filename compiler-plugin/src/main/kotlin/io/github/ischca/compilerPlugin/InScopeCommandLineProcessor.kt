@@ -31,7 +31,7 @@ class InScopeCommandLineProcessor: CommandLineProcessor
 		                                 description = "True is recursive check, default is false",
 		                                 required = false,
 		                                 allowMultipleOccurrences = false)
-		val PLUGIN_ID = "io.github.ischca.in-scope"
+		val PLUGIN_ID = "in-scope"
 	}
 	
 	override val pluginId: String

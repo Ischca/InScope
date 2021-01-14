@@ -14,12 +14,12 @@ class InScopeGradlePlugin: KotlinCompilerPluginSupportPlugin
 {
 	override fun getCompilerPluginId(): String = InScopeCommandLineProcessor.PLUGIN_ID
 	override fun getPluginArtifact(): SubpluginArtifact = SubpluginArtifact(
-			groupId = "io.github.ischca", artifactId = "in-scope", version = "0.0.2"
+			groupId = "io.github.ischca", artifactId = "in-scope", version = "0.0.3"
 	)
 	
 	override fun isApplicable(kotlinCompilation: KotlinCompilation<*>): Boolean
 	{
-		return kotlinCompilation.target.project.plugins.hasPlugin(InScopeGradlePlugin::class.java)
+		return true
 	}
 	
 	override fun applyToCompilation(kotlinCompilation: KotlinCompilation<*>): Provider<List<SubpluginOption>>
