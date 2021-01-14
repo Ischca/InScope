@@ -14,6 +14,15 @@ object Hoge
 	fun select() = println("select!")
 }
 
+@A
+object Fuga
+{
+	init
+	{
+		println("init!")
+	}
+}
+
 fun caller(proc: () -> Unit)
 {
 	proc()

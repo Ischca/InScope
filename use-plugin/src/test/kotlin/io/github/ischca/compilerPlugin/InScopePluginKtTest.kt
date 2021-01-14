@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 const val annotationSource =
 		"""
 			|@Retention(AnnotationRetention.SOURCE)
-			|@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
+			|@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS, AnnotationTarget.CLASS)
 			|annotation class Fuga(val blockName: String)
 		"""
 
@@ -200,23 +200,80 @@ internal class InScopePluginKtTest
 	fun `should success multiple block name`()
 	{
 		assertThis(CompilerTest(
+				config = {
+					InScopeConfig(
+							PluginOption(InScopeCommandLineProcessor.PLUGIN_ID,
+							             InScopeCommandLineProcessor.RECURSIVE_OPTION.optionName,
+							             true.toString()))
+				},
+				code = {
+					//language=kotlin
+					"""
+						|package io.github.ischca.compilerPlugin
+						|
+						$annotationSource
+						|
+						|@Fuga("transaction")
+						|annotation class Piyo
+						|
+						|object Hoge {
+						|    @Piyo
+						|    fun select() = println("select!")
+						|
+						|    @Piyo
+						|    fun call() {
+						|        Hoge.select()
+						|    }
+						|}
+					""".trimIndent().source
+				},
+				assert = { compiles }))
+	}
+	
+	@Test
+	fun `should success function definition`()
+	{
+		assertThis(CompilerTest(
 				config = { InScopeConfig() },
 				code = {
 					//language=kotlin
 					"""
 						|package io.github.ischca.compilerPlugin
 						|
-						|@Retention(AnnotationRetention.SOURCE)
-						|@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
-						|annotation class Fuga(vararg val blockName: String)
 						|
+						$annotationSource
 						|object Hoge {
-						|    @Fuga("transaction", "transaction2")
+						|    @Fuga("transaction")
 						|    fun select() = println("select!")
 						|}
 						|
 						|fun transaction() {
 						|    Hoge.select()
+						|}
+					""".trimIndent().source
+				},
+				assert = { compiles }))
+	}
+	
+	@Test
+	fun `should success call in init block`()
+	{
+		assertThis(CompilerTest(
+				config = { InScopeConfig() },
+				code = {
+					//language=kotlin
+					"""
+						|package io.github.ischca.compilerPlugin
+						|
+						|
+						$annotationSource
+						|
+						|@Fuga("transaction")
+						|fun select() = println("select!")
+						|
+						|@Fuga("transaction")
+						|object Hoge {
+						|    init { select() }
 						|}
 					""".trimIndent().source
 				},

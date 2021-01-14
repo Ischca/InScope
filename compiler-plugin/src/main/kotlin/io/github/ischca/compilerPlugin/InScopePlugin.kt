@@ -14,14 +14,13 @@ import org.jetbrains.kotlin.compiler.plugin.ComponentRegistrar
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.psi.KtCallElement
-import org.jetbrains.kotlin.psi.KtConstructorCalleeExpression
-import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.getTextWithLocation
 import org.jetbrains.kotlin.psi.psiUtil.parents
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.calls.callUtil.getResolvedCall
 import org.jetbrains.kotlin.resolve.constants.ArrayValue
+import org.jetbrains.kotlin.resolve.constants.StringValue
 import org.jetbrains.kotlin.resolve.descriptorUtil.annotationClass
 import org.jetbrains.kotlin.resolve.descriptorUtil.firstArgument
 import org.jetbrains.kotlin.resolve.source.getPsi
@@ -65,6 +64,7 @@ private val Meta.inScope: CliPlugin
 						val blockNames = when(val argument = targetAnnotation?.firstArgument())
 						{
 							is ArrayValue -> argument.value.map { it.stringTemplateValue() }
+							is StringValue -> listOf(argument.value)
 							else -> null
 						}
 						if(blockNames == null)
@@ -86,12 +86,22 @@ private val Meta.inScope: CliPlugin
 										acc
 									} else acc.parent
 								}
-								is KtNamedFunction ->
+								is KtCallExpression ->
 								{
-									if(acc.isTopLevel || !recursive || blockNames.contains(acc.name))
+									if(blockNames.contains(acc.calleeExpression?.text)
+										|| !recursive
+										|| blockNames.contains(acc.calleeExpression?.text)
+									)
 									{
 										acc
 									} else acc.parent
+								}
+								is KtEnumEntry -> acc.parent
+								is KtClass,
+								is KtObjectDeclaration,
+								is KtNamedFunction ->
+								{
+									acc
 								}
 								else -> acc.parent
 							}
@@ -102,19 +112,35 @@ private val Meta.inScope: CliPlugin
 											|| (target.annotations(bindingContext)
 											.any { t -> annotations.any { a -> t.fqName == a.fqName } }))
 									)
+							&& (target !is KtCallExpression ||
+									!(blockNames.contains(target.calleeExpression?.text)
+											|| (target.annotations(bindingContext)
+											.any { t -> annotations.any { a -> t.fqName == a.fqName } }))
+									)
 							&& (target !is KtNamedFunction ||
 									!(blockNames.contains(target.name)
 											|| (target.annotations(bindingContext)
 											.any { t -> annotations.any { a -> t.fqName == a.fqName } })
 											)
 									)
+							&& (target !is KtClassOrObject ||
+									!(target.annotations(bindingContext)
+											.any { t -> annotations.any { a -> t.fqName == a.fqName } }))
 						)
 						{
 							val annotationNamesText = annotations.joinToString(separator = " or ") {
 								"@${it.fqName?.shortName()}"
 							}
+							val name = when(target)
+							{
+								is KtCallElement -> target.calleeExpression?.text
+								is KtCallExpression -> target.calleeExpression?.text
+								is KtNamedFunction -> target.name
+								is KtClassOrObject -> target.name
+								else -> target.text
+							}
 							error(el,
-							      "fun ${el.text.suffixIfNot("()")} is must be called in $blockNames {} " +
+							      "target=[$name]\ntype=[${target.javaClass.simpleName}]\nfun ${el.text.suffixIfNot("()")} is must be called in ${blockNames.joinToString { "$it {}" }} " +
 									      if(!recursive) "or attach $annotationNamesText annotation." else ".")
 						}
 					}
