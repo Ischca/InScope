@@ -2,7 +2,7 @@ plugins {
 	`java-gradle-plugin`
 	kotlin("jvm")
 	kotlin("kapt")
-	id("io.github.ischca.in-scope") version "0.0.3"
+	id("io.github.ischca.compiler-plugin") version "0.0.4"
 }
 
 repositories {

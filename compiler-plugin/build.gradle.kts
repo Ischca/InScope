@@ -1,4 +1,5 @@
 plugins {
+	id("com.gradle.plugin-publish") version "0.12.0"
 	`java-gradle-plugin`
 	kotlin("jvm")
 	kotlin("kapt")
@@ -7,6 +8,28 @@ plugins {
 repositories {
 	jcenter()
 	maven("https://oss.jfrog.org/artifactory/oss-snapshot-local/")
+}
+
+gradlePlugin {
+	plugins {
+		create("inScopePlugin") {
+			id = "io.github.ischca.compiler-plugin"
+			implementationClass = "io.github.ischca.gradlePlugin.InScopeGradlePlugin"
+		}
+	}
+}
+
+pluginBundle {
+	website = "https://github.com/Ischca/InScope"
+	vcsUrl = "https://github.com/Ischca/InScope"
+	description = "A compiler plugin that provides checks to ensure that function calls are in scope at build time."
+	
+	(plugins) {
+		"inScopePlugin" {
+			displayName = "InScope Compiler Plugin"
+			tags = listOf("compiler")
+		}
+	}
 }
 
 val kotlinVersion: String by project
