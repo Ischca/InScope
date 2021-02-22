@@ -32,6 +32,10 @@ pluginBundle {
 	}
 }
 
+tasks.register("publish") {
+	dependsOn(tasks.publishPlugins)
+}
+
 val kotlinVersion: String by project
 
 dependencies {
